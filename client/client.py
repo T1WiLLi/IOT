@@ -78,12 +78,8 @@ async def start_stream():
                     continue
 
                 try:
-                    # Pass the full candidate string to RTCIceCandidate
-                    await pc.addIceCandidate(RTCIceCandidate(
-                        sdpMid=candidate["sdpMid"],
-                        sdpMLineIndex=candidate["sdpMLineIndex"],
-                        candidate=candidate["candidate"]  # Correct usage here
-                    ))
+                    ice_candidate = RTCIceCandidate(candidate=candidate["candidate"])
+                    await pc.addIceCandidate(ice_candidate)
                     logger.info("ICE candidate added successfully")
                 except Exception as e:
                     logger.error(f"Error adding ICE candidate: {e}")
