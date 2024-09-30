@@ -2,7 +2,7 @@ import asyncio
 import cv2
 import websockets
 import json
-from aiortc import RTCPeerConnection, VideoStreamTrack, RTCSessionDescription
+from aiortc import RTCPeerConnection, VideoStreamTrack, RTCSessionDescription, RTCIceCandidate
 from av import VideoFrame
 
 class CameraStreamTrack(VideoStreamTrack):
@@ -37,7 +37,11 @@ async def start_stream():
                 print("Sending ICE candidate")
                 await ws.send(json.dumps({
                     "type": "ice",
-                    "candidate": event.candidate.to_sdp()
+                    "candidate": {
+                        "candidate": event.candidate.candidate,
+                        "sdpMid": event.candidate.sdpMid,
+                        "sdpMLineIndex": event.candidate.sdpMLineIndex
+                    }
                 }))
 
         offer = await pc.createOffer()
@@ -60,9 +64,13 @@ async def start_stream():
         async for message in ws:
             data = json.loads(message)
             if data["type"] == "ice":
-                candidate = data["candidate"]
                 print("Received ICE candidate")
-                await pc.addIceCandidate(candidate)
+                candidate = data["candidate"]
+                await pc.addIceCandidate(RTCIceCandidate(
+                    sdpMid=candidate.get("sdpMid"),
+                    sdpMLineIndex=candidate.get("sdpMLineIndex"),
+                    candidate=candidate["candidate"]
+                ))
 
 try:
     asyncio.run(start_stream())

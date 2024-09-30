@@ -1,4 +1,7 @@
-const pc = new RTCPeerConnection();
+const pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+});
+
 pc.ontrack = function(event) {
     console.log("Received track event:", event);
     console.log("Track kind:", event.track.kind);
@@ -15,7 +18,11 @@ pc.onicecandidate = function(event) {
         console.log("New ICE candidate:", event.candidate);
         ws.send(JSON.stringify({
             type: "ice",
-            candidate: event.candidate
+            candidate: {
+                candidate: event.candidate.candidate,
+                sdpMid: event.candidate.sdpMid,
+                sdpMLineIndex: event.candidate.sdpMLineIndex
+            }
         }));
     }
 };
