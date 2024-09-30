@@ -66,11 +66,25 @@ async def start_stream():
             if data["type"] == "ice":
                 print("Received ICE candidate")
                 candidate = data["candidate"]
-                await pc.addIceCandidate(RTCIceCandidate(
-                    sdpMid=candidate.get("sdpMid"),
-                    sdpMLineIndex=candidate.get("sdpMLineIndex"),
-                    candidate=candidate["candidate"]
-                ))
+                try:
+                    ice_candidate = RTCIceCandidate(
+                        sdpMid=candidate.get("sdpMid"),
+                        sdpMLineIndex=candidate.get("sdpMLineIndex"),
+                        foundation=None,
+                        component=None,
+                        protocol=None,
+                        priority=None,
+                        ip=None,
+                        port=None,
+                        type=None,
+                        tcpType=None,
+                        relatedAddress=None,
+                        relatedPort=None
+                    )
+                    ice_candidate.candidate = candidate["candidate"]
+                    await pc.addIceCandidate(ice_candidate)
+                except Exception as e:
+                    print(f"Error adding ICE candidate: {e}")
 
 try:
     asyncio.run(start_stream())

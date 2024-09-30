@@ -54,7 +54,12 @@ ws.onmessage = async function(event) {
             }));
         } else if (message.type === "ice") {
             console.log("Adding ICE candidate");
-            await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+                console.log("ICE candidate added successfully");
+            } catch (error) {
+                console.error("Error adding ICE candidate:", error);
+            }
         }
     } catch (error) {
         console.error("Error in onmessage:", error);
