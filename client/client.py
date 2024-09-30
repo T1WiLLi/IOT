@@ -67,29 +67,38 @@ async def start_stream():
 
         logger.info("Listening for ICE candidates")
         async for message in ws:
-            data = json.loads(message)
-            if data["type"] == "ice":
-                logger.info("Received ICE candidate")
-                candidate = data["candidate"]
-                logger.debug(f"ICE candidate data: {candidate}")
-                
-                if not candidate or "candidate" not in candidate:
-                    logger.warning("Received invalid ICE candidate data")
-                    continue
+            try:
+                data = json.loads(message)
+                if data["type"] == "ice":
+                    logger.info("Received ICE candidate")
+                    candidate = data["candidate"]
+                    logger.debug(f"ICE candidate data: {candidate}")
+                    
+                    if not candidate or "candidate" not in candidate:
+                        logger.warning("Received invalid ICE candidate data")
+                        continue
 
-                try:
-                    candidate_string = data["candidate"]["candidate"]
-                    ice_candidate = RTCIceCandidate(candidate=candidate_string)
-                    await pc.addIceCandidate(ice_candidate)
-                    logger.info("ICE candidate added successfully")
-                except Exception as e:
-                    logger.error(f"Error adding ICE candidate: {e}")
+                    try:
+                        # Create RTCIceCandidate object using only the candidate string
+                        candidate_string = candidate["candidate"]
+                        ice_candidate = RTCIceCandidate(candidate=candidate_string)
+                        await pc.addIceCandidate(ice_candidate)
+                        logger.info("ICE candidate added successfully")
+                    except Exception as e:
+                        logger.error(f"Error adding ICE candidate: {e}", exc_info=True)
+            except json.JSONDecodeError:
+                logger.error("Failed to decode JSON message", exc_info=True)
+            except KeyError:
+                logger.error("Missing expected keys in message", exc_info=True)
+            except Exception as e:
+                logger.error(f"Unexpected error processing message: {e}", exc_info=True)
 
         # Keep the connection alive
         while True:
             await asyncio.sleep(1)
 
-try:
-    asyncio.run(start_stream())
-except Exception as e:
-    logger.error(f"An error occurred: {e}")
+if __name__ == "__main__":
+    try:
+        asyncio.run(start_stream())
+    except Exception as e:
+        logger.error(f"An error occurred in main: {e}", exc_info=True)
