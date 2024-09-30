@@ -79,9 +79,12 @@ async def start_stream():
                         continue
 
                     try:
-                        # Create RTCIceCandidate object using only the candidate string
-                        candidate_string = candidate["candidate"]
-                        ice_candidate = RTCIceCandidate(candidate=candidate_string)
+                        # Correct way to create the RTCIceCandidate object
+                        ice_candidate = RTCIceCandidate(
+                            candidate=candidate["candidate"],
+                            sdpMid=candidate["sdpMid"],
+                            sdpMLineIndex=candidate["sdpMLineIndex"]
+                        )
                         await pc.addIceCandidate(ice_candidate)
                         logger.info("ICE candidate added successfully")
                     except Exception as e:
