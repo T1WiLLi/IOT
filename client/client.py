@@ -78,7 +78,8 @@ async def start_stream():
                     continue
 
                 try:
-                    ice_candidate = RTCIceCandidate(candidate=candidate["candidate"])
+                    candidate_string = data["candidate"]["candidate"]
+                    ice_candidate = RTCIceCandidate(candidate=candidate_string)
                     await pc.addIceCandidate(ice_candidate)
                     logger.info("ICE candidate added successfully")
                 except Exception as e:
