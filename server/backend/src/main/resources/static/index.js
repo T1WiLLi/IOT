@@ -6,12 +6,18 @@ pc.ontrack = function(event) {
     console.log("Received track event:", event);
     console.log("Track kind:", event.track.kind);
     console.log("Track readyState:", event.track.readyState);
+    
     const videoElement = document.getElementById("video");
     if (videoElement.srcObject !== event.streams[0]) {
         console.log("Setting video srcObject");
         videoElement.srcObject = event.streams[0];
-        videoElement.play().catch(e => console.error("Error playing video:", e));
     }
+
+    document.body.addEventListener('click', () => {
+        videoElement.play().catch(e => console.error("Error playing video:", e));
+    });
+
+    console.log("Video stream should now play after user interaction.");
 };
 
 pc.onicecandidate = function(event) {

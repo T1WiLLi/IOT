@@ -34,12 +34,12 @@ class CameraStreamTrack(VideoStreamTrack):
 async def start_stream():
     pc = RTCPeerConnection()
     pc.addTrack(CameraStreamTrack())
-    
+
     async with websockets.connect("ws://192.168.2.117:8080/ws") as ws:
         @pc.on("icecandidate")
         async def on_icecandidate(event):
             if event.candidate:
-                logger.info("Sending ICE candidate")
+                logger.info(f"Sending ICE candidate: {event.candidate.candidate}")
                 await ws.send(json.dumps({
                     "type": "ice",
                     "candidate": {
@@ -51,21 +51,21 @@ async def start_stream():
 
         offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
-        
+
         logger.info("Sending offer")
         await ws.send(json.dumps({
             "type": "offer",
             "sdp": pc.localDescription.sdp
         }))
-        
+
         logger.info("Waiting for answer")
         response = await ws.recv()
         answer = json.loads(response)
         if answer["type"] == "answer":
             logger.info("Received answer, setting remote description")
             await pc.setRemoteDescription(RTCSessionDescription(sdp=answer["sdp"], type="answer"))
-        
-        logger.info("Listening for messages")
+
+        logger.info("Listening for ICE candidates")
         async for message in ws:
             data = json.loads(message)
             if data["type"] == "ice":
@@ -78,19 +78,11 @@ async def start_stream():
                     continue
 
                 try:
-                    ice_candidate = RTCIceCandidate(
-                        component=None,
-                        foundation=None,
-                        ip=None,
-                        port=None,
-                        priority=None,
-                        protocol=None,
-                        type=None,
+                    await pc.addIceCandidate(RTCIceCandidate(
+                        candidate=candidate["candidate"],
                         sdpMid=candidate.get("sdpMid"),
-                        sdpMLineIndex=candidate.get("sdpMLineIndex"),
-                    )
-                    ice_candidate.candidate = candidate["candidate"]
-                    await pc.addIceCandidate(ice_candidate)
+                        sdpMLineIndex=candidate.get("sdpMLineIndex")
+                    ))
                     logger.info("ICE candidate added successfully")
                 except Exception as e:
                     logger.error(f"Error adding ICE candidate: {e}")
