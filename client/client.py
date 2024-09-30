@@ -79,14 +79,25 @@ async def start_stream():
 
                 try:
                     ice_candidate = RTCIceCandidate(
+                        component=None,
+                        foundation=None,
+                        ip=None,
+                        port=None,
+                        priority=None,
+                        protocol=None,
+                        type=None,
                         sdpMid=candidate.get("sdpMid"),
                         sdpMLineIndex=candidate.get("sdpMLineIndex"),
-                        candidate=candidate["candidate"]
                     )
+                    ice_candidate.candidate = candidate["candidate"]
                     await pc.addIceCandidate(ice_candidate)
                     logger.info("ICE candidate added successfully")
                 except Exception as e:
                     logger.error(f"Error adding ICE candidate: {e}")
+
+        # Keep the connection alive
+        while True:
+            await asyncio.sleep(1)
 
 try:
     asyncio.run(start_stream())

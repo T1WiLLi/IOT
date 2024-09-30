@@ -10,6 +10,7 @@ pc.ontrack = function(event) {
     if (videoElement.srcObject !== event.streams[0]) {
         console.log("Setting video srcObject");
         videoElement.srcObject = event.streams[0];
+        videoElement.play().catch(e => console.error("Error playing video:", e));
     }
 };
 
@@ -28,6 +29,14 @@ pc.onicecandidate = function(event) {
         console.log("Sending ICE candidate:", candidateObj);
         ws.send(JSON.stringify(candidateObj));
     }
+};
+
+pc.oniceconnectionstatechange = function() {
+    console.log("ICE connection state changed to:", pc.iceConnectionState);
+};
+
+pc.onconnectionstatechange = function() {
+    console.log("Connection state changed to:", pc.connectionState);
 };
 
 const ws = new WebSocket("ws://192.168.2.117:8080/ws");
