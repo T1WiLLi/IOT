@@ -2,8 +2,13 @@ import asyncio
 import cv2
 import websockets
 import json
+import logging
 from aiortc import RTCPeerConnection, VideoStreamTrack, RTCSessionDescription, RTCIceCandidate
 from av import VideoFrame
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class CameraStreamTrack(VideoStreamTrack):
     def __init__(self):
@@ -17,7 +22,7 @@ class CameraStreamTrack(VideoStreamTrack):
         ret, frame = self.cap.read()
         
         if not ret:
-            print("Failed to capture frame")
+            logger.warning("Failed to capture frame")
             return None
         
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -34,7 +39,7 @@ async def start_stream():
         @pc.on("icecandidate")
         async def on_icecandidate(event):
             if event.candidate:
-                print("Sending ICE candidate")
+                logger.info("Sending ICE candidate")
                 await ws.send(json.dumps({
                     "type": "ice",
                     "candidate": {
@@ -47,46 +52,43 @@ async def start_stream():
         offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
         
-        print("Sending offer")
+        logger.info("Sending offer")
         await ws.send(json.dumps({
             "type": "offer",
             "sdp": pc.localDescription.sdp
         }))
         
-        print("Waiting for answer")
+        logger.info("Waiting for answer")
         response = await ws.recv()
         answer = json.loads(response)
         if answer["type"] == "answer":
-            print("Received answer, setting remote description")
+            logger.info("Received answer, setting remote description")
             await pc.setRemoteDescription(RTCSessionDescription(sdp=answer["sdp"], type="answer"))
         
-        print("Listening for messages")
+        logger.info("Listening for messages")
         async for message in ws:
             data = json.loads(message)
             if data["type"] == "ice":
-                print("Received ICE candidate")
+                logger.info("Received ICE candidate")
                 candidate = data["candidate"]
+                logger.debug(f"ICE candidate data: {candidate}")
+                
+                if not candidate or "candidate" not in candidate:
+                    logger.warning("Received invalid ICE candidate data")
+                    continue
+
                 try:
                     ice_candidate = RTCIceCandidate(
                         sdpMid=candidate.get("sdpMid"),
                         sdpMLineIndex=candidate.get("sdpMLineIndex"),
-                        foundation=None,
-                        component=None,
-                        protocol=None,
-                        priority=None,
-                        ip=None,
-                        port=None,
-                        type=None,
-                        tcpType=None,
-                        relatedAddress=None,
-                        relatedPort=None
+                        candidate=candidate["candidate"]
                     )
-                    ice_candidate.candidate = candidate["candidate"]
                     await pc.addIceCandidate(ice_candidate)
+                    logger.info("ICE candidate added successfully")
                 except Exception as e:
-                    print(f"Error adding ICE candidate: {e}")
+                    logger.error(f"Error adding ICE candidate: {e}")
 
 try:
     asyncio.run(start_stream())
 except Exception as e:
-    print(f"An error occurred: {e}")
+    logger.error(f"An error occurred: {e}")

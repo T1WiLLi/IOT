@@ -16,14 +16,17 @@ pc.ontrack = function(event) {
 pc.onicecandidate = function(event) {
     if (event.candidate) {
         console.log("New ICE candidate:", event.candidate);
-        ws.send(JSON.stringify({
+        const candidateObj = {
             type: "ice",
             candidate: {
                 candidate: event.candidate.candidate,
                 sdpMid: event.candidate.sdpMid,
-                sdpMLineIndex: event.candidate.sdpMLineIndex
+                sdpMLineIndex: event.candidate.sdpMLineIndex,
+                usernameFragment: event.candidate.usernameFragment
             }
-        }));
+        };
+        console.log("Sending ICE candidate:", candidateObj);
+        ws.send(JSON.stringify(candidateObj));
     }
 };
 
@@ -53,10 +56,14 @@ ws.onmessage = async function(event) {
                 sdp: pc.localDescription.sdp
             }));
         } else if (message.type === "ice") {
-            console.log("Adding ICE candidate");
+            console.log("Received ICE candidate:", message.candidate);
             try {
-                await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-                console.log("ICE candidate added successfully");
+                if (message.candidate && message.candidate.candidate) {
+                    await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+                    console.log("ICE candidate added successfully");
+                } else {
+                    console.warn("Received invalid ICE candidate");
+                }
             } catch (error) {
                 console.error("Error adding ICE candidate:", error);
             }
