@@ -1,24 +1,48 @@
+import asyncio
 import cv2
-import PySimpleGUI as sg
+import websockets
+from aiortc import RTCPeerConnection, VideoStreamTrack, RTCSessionDescription
+from av import VideoFrame
 
-cap = cv2.VideoCapture(0)
+class CameraStreamTrack(VideoStreamTrack):
+    def __init__(self):
+        super().__init__()
+        self.cap = cv2.VideoCapture(0)
+        
+    async def recv(self):
+        pts, time_base = await self.next_timestamp()
+        ret, frame = self.cap.read()
+        
+        if not ret:
+            return None
+        
+        video_frame = VideoFrame.from_nbarray(frame, format="bgr24")
+        video_frame.pts = pts
+        video_frame.time_base = time_base
+        return video_frame
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-cap.set(cv2.CAP_PROP_FPS, 24)
-
-layout = [[sg.Image(filename="", key="image")], [sg.Button("Exit")]]
-window = sg.Window("PS3 Eye Camera", layout)
-
-while True:
-    event, values = window.read(timeout=20)
-    if event == "Exit" or event == sg.WIN_CLOSED:
-        break
+async def start_stream():
+    pc = RTCPeerConnection()
+    pc.addTrack(CameraStreamTrack())
     
-    ret, frame = cap.read()
-    if ret:
-        imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-        window["image"].update(data=imgbytes)
+    async with websockets.connect("ws://192.168.2.117:8080/ws") as ws:
+        offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        
+        await ws.send(json.dumps({
+            "type": "offer",
+            "sdp": pc.localDescription.sdp
+        }))
+        
+        response = await ws.recv()
+        answer = json.loads(response)
+        if answer["type"] == "answer":
+            await pc.setRemoteDescription(RTCSessionDescription(answer["sdp"], "answer"))
+        
+        async for message in ws:
+            ice = json.loads(message)
+            if ice["type"] == "ice":
+                candidate = ice["candidate"]
+                await pc.addIceCandidate(candidate)
 
-cap.release()
-window.close()
+asyncio.run(start_stream())
